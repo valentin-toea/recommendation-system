@@ -1,18 +1,14 @@
 import { requests as rqs } from "recombee-api-client";
-import { LAPTOP_PROPERTY_TYPES } from "../utils/utils";
+import { LAPTOP_COLUMNS, LAPTOP_PROPERTIES } from "../utils/const";
 import { client } from "../lib/recombee-client";
-import { RecordType } from "./types";
+import { LaptopRecord } from "../types/types";
 
-export async function registerItems(columns: string[], records: RecordType[]) {
+export async function registerItems(records: LaptopRecord[]) {
   // send item properties
-  const addItemPropertyRequests = columns.map(
-    (propertyName) =>
-      new rqs.AddItemProperty(
-        propertyName,
-        LAPTOP_PROPERTY_TYPES[propertyName].type
-      )
-  );
-
+  const addItemPropertyRequests = LAPTOP_COLUMNS.map((propertyName) => {
+    const propertyType = LAPTOP_PROPERTIES[propertyName as keyof LaptopRecord];
+    return new rqs.AddItemProperty(propertyName, propertyType);
+  });
   await client.send(new rqs.Batch(addItemPropertyRequests));
 
   // send item id & item values
@@ -23,4 +19,6 @@ export async function registerItems(columns: string[], records: RecordType[]) {
       })
   );
   await client.send(new rqs.Batch(setItemValueRequests));
+
+  console.log("Succesfully registered items");
 }

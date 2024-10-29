@@ -1,7 +1,7 @@
 import { parse } from "csv-parse";
 import * as fs from "fs";
-import { LAPTOP_COLUMNS, LAPTOP_PROPERTY_TYPES } from "../utils/utils";
-import { CSVObject } from "./types";
+import { CSVObject } from "../types/types";
+import { handleError } from "../utils/handle-error";
 
 const convertValueToType = (value: string, type: string) => {
   switch (type) {
@@ -15,38 +15,41 @@ const convertValueToType = (value: string, type: string) => {
   }
 };
 
-const transformArrayToMap = (input: string[]) => {
+const transformArrayToMap = (
+  input: string[],
+  columns: string[],
+  columnTypes: Record<string, string>
+) => {
   return input.reduce(
     (map, currValue, idx) => ({
       ...map,
-      [LAPTOP_COLUMNS[idx]]: convertValueToType(
-        currValue,
-        LAPTOP_PROPERTY_TYPES[LAPTOP_COLUMNS[idx]].type
-      ),
+      [columns[idx]]: convertValueToType(currValue, columnTypes[columns[idx]]),
     }),
     {}
   );
 };
 
-// https://www.kaggle.com/datasets/juanmerinobermejo/laptops-price-dataset?resource=download
-export async function loadCSV(): Promise<CSVObject> {
+export async function loadCSV<T>(
+  fileLocation: string,
+  columns: string[] = [],
+  columnTypes: Record<string, string> = {}
+): Promise<CSVObject<T>> {
   try {
-    const records = [];
-    const parser = fs.createReadStream(`resources/laptops.csv`).pipe(
+    const records: T[] = [];
+    const parser = fs.createReadStream(fileLocation).pipe(
       parse({
         to: 300,
       })
     );
 
     for await (const record of parser) {
-      records.push(transformArrayToMap(record));
+      records.push(transformArrayToMap(record, columns, columnTypes) as T);
     }
 
     if (!records[0]) throw new Error("Empty CSV File.");
-
-    return { columns: LAPTOP_COLUMNS, records: records.slice(1) };
-  } catch (e) {
-    console.error((e as Error).message);
-    return { columns: [], records: [] };
+    return { records: records.slice(1) };
+  } catch (err) {
+    handleError(err);
+    return { records: [] };
   }
 }
